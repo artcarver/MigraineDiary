@@ -46,12 +46,16 @@ so entries made in Safari do not show up in the home screen app.
   - a before-and-after comparison for a preventive
   - the MIDAS questionnaire score
 
-  It can be printed, saved as a PDF, or shared as text.
+  **Save or print as PDF** builds the PDF on the phone and opens the share
+  sheet, where it can be printed, saved to Files, or mailed. **Share as
+  text** sends the same summary as plain text.
 
 ## Backups
 
 Settings has **Save backup file**, which saves to iCloud Drive or Files, and
-**Load a backup file** for restoring it. It also exports three CSV files for
+**Load a backup file** for restoring it. If the phone won't share the backup
+as a .json file, it saves it as a .txt file instead, and loading accepts
+either. It also exports three CSV files for
 Numbers or Excel. If no backup has been saved for 30 days, the app reminds you.
 
 ## Daily reminder
@@ -91,6 +95,9 @@ any static server and open it in a browser.
 - `js/stats.js`: everything the app counts, as pure functions.
 - `js/store.js`: saving to `localStorage`, plus the backup format.
 - `js/csv.js`: the spreadsheet export.
+- `js/report.js`: the doctor summary as text, shared by the PDF and by Share
+  as text.
+- `js/pdf.js`: a small PDF writer for that summary.
 - `js/defaults.js`: starting medicine and symptom lists, and the overuse limits.
 - `sw.js`: offline cache. **Change `CACHE` whenever any file changes**, or
   phones keep running the old version.

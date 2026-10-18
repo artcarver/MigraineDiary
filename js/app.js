@@ -55,6 +55,8 @@ import {
   trackingStart,
 } from './stats.js';
 import { daysCsv, dosesCsv, migrainesCsv } from './csv.js';
+import { summaryBlocks, blocksToText } from './report.js';
+import { makePdf } from './pdf.js';
 
 const VERSION = '1.0';
 const HOUR = 3600000;
@@ -89,6 +91,12 @@ function commit() {
     return false;
   }
 }
+
+// Save the starting lists on first launch, so a half-filled form that names a
+// medicine still finds it if the app is closed before the first save.
+try {
+  if (!loadProblem && !localStorage.getItem(STORAGE_KEY)) commit();
+} catch {}
 
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
@@ -190,6 +198,15 @@ function useDraft(route, init) {
   else draft = { route, createdAt: new Date().toISOString(), ...init() };
   storeDraft();
   return draft;
+}
+
+// Forget a saved half-filled form when the same data is changed elsewhere.
+function discardDraft(route) {
+  if (draft && draft.route === route) draft = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(DRAFT_KEY));
+    if (saved && saved.route === route) localStorage.removeItem(DRAFT_KEY);
+  } catch {}
 }
 
 function startDraft(route, values) {
@@ -321,8 +338,8 @@ function timeInput(field, value, label = '') {
   return `<label class="input">${label ? `<span>${esc(label)}</span>` : ''}<input type="datetime-local" data-bind="${field}" value="${esc(value || '')}"></label>`;
 }
 
-function textInput(field, value, placeholder) {
-  return `<input type="text" data-bind="${field}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" autocapitalize="words">`;
+function textInput(field, value, placeholder, cap = 'words') {
+  return `<input type="text" data-bind="${field}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" autocapitalize="${cap}">`;
 }
 
 function numInput(field, value, max = 92) {
@@ -630,6 +647,19 @@ function newDefaults(extra = {}) {
   };
 }
 
+// The migraine form opened from a day rating: ask when it started rather than
+// assuming it began just now.
+function formForDay(key, t, extra) {
+  return key === t
+    ? { startMode: 'pick', stillGoing: true, ...extra }
+    : { startMode: 'pick', start: `${key}T12:00`, stillGoing: false, end: `${key}T20:00`, ...extra };
+}
+
+// The migraine a dose at this time belongs to, from those covering its day.
+function episodeAt(episodes, iso) {
+  return episodes.filter((e) => e.start <= iso).sort((a, b) => b.start.localeCompare(a.start))[0] || episodes[0];
+}
+
 function draftStartIso(d) {
   return d.startMode === 'now' ? new Date().toISOString() : fromLocalInput(d.start);
 }
@@ -784,7 +814,7 @@ function saveNew() {
     createdAt: now.toISOString(),
   };
   state.episodes.push(ep);
-  for (const x of d.doses) addDose(x.medId, fromLocalInput(x.time) || now.toISOString(), x.pain, ep.id);
+  for (const x of d.doses.filter((y) => med(y.medId))) addDose(x.medId, fromLocalInput(x.time) || now.toISOString(), x.pain, ep.id);
 
   const key = ended ? dayKey(start) : today();
   const e = { ...(state.days[key] || {}) };
@@ -808,11 +838,14 @@ function saveEdit(el) {
   const ep = state.episodes.find((e) => e.id === id);
   if (!ep) return go('#calendar');
   const d = draft;
+  const now = new Date();
   const start = fromLocalInput(d.start);
   if (!start) return toast('Pick when it started.');
+  if (new Date(start) - now > 5 * 60000) return toast('The start time is in the future.');
   const end = d.stillGoing ? null : fromLocalInput(d.end);
   if (!d.stillGoing && !end) return toast('Pick when it ended.');
   if (end && end <= start) return toast('The end time needs to be after the start.');
+  if (end && new Date(end) - now > 5 * 60000) return toast('The end time is in the future.');
   if (!end && state.episodes.some((e) => !e.end && e.id !== id)) return toast('Another migraine is still going. Only one can be going at a time.');
   const prev = recentlyEnded(state, start, id);
   Object.assign(ep, {
@@ -914,15 +947,16 @@ function saveDay() {
   e.period = d.period;
   e.preventive = Object.fromEntries(Object.entries(d.preventive || {}).filter(([, v]) => v));
   state.days[key] = clean(e);
-  if (info.inEpisode) for (const x of d.doses) addDose(x.medId, fromLocalInput(x.time) || new Date().toISOString(), x.pain, info.episodes[0].id);
+  if (info.inEpisode) {
+    for (const x of d.doses.filter((y) => med(y.medId))) {
+      const time = fromLocalInput(x.time) || new Date().toISOString();
+      addDose(x.medId, time, x.pain, episodeAt(info.episodes, time).id);
+    }
+  }
   if (!commit()) return;
 
   if (migraineish && !info.inEpisode) {
-    const extra =
-      key === t
-        ? { level: d.level, pain: d.peakPain, missed: d.missed }
-        : { startMode: 'pick', start: `${key}T12:00`, stillGoing: false, end: `${key}T20:00`, level: d.level, missed: d.missed };
-    startDraft('#new', newDefaults(extra));
+    startDraft('#new', newDefaults(formForDay(key, t, { level: d.level, pain: d.peakPain, missed: d.missed })));
     return go('#new');
   }
   dropDraft();
@@ -1311,70 +1345,11 @@ function viewSummary(arg) {
   }
 
   h += `<div class="stack no-print" style="margin:16px 0">
-    <button type="button" class="btn" data-act="print">Print or save as PDF</button>
+    <button type="button" class="btn" data-act="save-pdf">Save or print as PDF</button>
     <button type="button" class="btn" data-act="share-summary">Share as text</button>
     <a class="btn" href="#midas">Fill in the MIDAS questionnaire</a>
   </div>`;
   return h;
-}
-
-function summaryText({ s, title }) {
-  const L = [];
-  L.push(`Migraine Diary summary: ${title}`);
-  L.push(`${fmtDay(s.from, { year: true })} to ${fmtDay(s.to, { year: true })}, ${s.recorded} of ${s.tracked} days recorded`);
-  L.push('');
-  L.push(`Migraine days: ${s.migraineDays} (about ${round1(s.migrainePer30)} a month)`);
-  L.push(`Medicine days: ${s.medDays} (about ${round1(s.medPer30)} a month)`);
-  L.push(`Could function ${s.levels[1]}, slowed down ${s.levels[2]}, had to stop or in bed ${s.levels[3]}${s.levels.unrated ? `, not rated ${s.levels.unrated}` : ''}`);
-  if (s.missed) L.push(`Missed work, school or plans: ${plural(s.missed, 'day')}`);
-  L.push(`Migraines started: ${s.episodes.length}. Came back after a medicine had made it go: ${s.cameBackDoses}. Started again within 48 hours: ${s.returns}`);
-  if (s.avgHours != null) L.push(`Average length ${fmtHours(s.avgHours)}, longest ${fmtHours(s.longestHours)}`);
-  if (s.avgPeak != null) L.push(`Average worst pain ${round1(s.avgPeak)} of 10, worst ${s.worstPain}`);
-  if (s.overuse.rows.length) {
-    L.push('');
-    L.push(`Medicine days in the 30 days to ${fmtDay(s.to)}:`);
-    for (const r of s.overuse.rows) L.push(`- ${r.label}: ${r.days} (limit ${r.limit})`);
-    if (s.overuse.combined) L.push(`- All together: ${s.overuse.combined.days} (limit ${s.overuse.combined.limit})`);
-  }
-  if (s.meds.length) {
-    L.push('');
-    L.push('Medicines:');
-    for (const m of s.meds) {
-      L.push(
-        `- ${medLabel(m.med)}: ${plural(m.doses, 'dose')} on ${plural(m.days, 'day')}; gone at 2 hours ${m.gone} of ${m.rated} rated; came back ${m.cameBack}; pain 0-3 when taken: gone ${m.early.gone} of ${m.early.n}; pain 4+: gone ${m.later.gone} of ${m.later.n}`,
-      );
-    }
-  }
-  const n = s.episodes.length;
-  if (n) {
-    const top = (counts, label) =>
-      Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([id, c]) => `${label(id)} ${c}`)
-        .join(', ');
-    L.push('');
-    L.push(`Side (of ${n}): left only ${s.sides.left}, right only ${s.sides.right}, both ${s.sides.both}, middle ${s.sides.middle}`);
-    if (Object.keys(s.locations).length) L.push(`Where: ${top(s.locations, (id) => labelOf(LOCATIONS, id))}`);
-    if (Object.keys(s.qualities).length) L.push(`Feels like: ${top(s.qualities, (id) => labelOf(QUALITIES, id))}`);
-    if (Object.keys(s.symptoms).length) L.push(`Symptoms: ${top(s.symptoms, symptomLabel)}`);
-    L.push(`Aura: ${s.aura.count} of ${n}`);
-    if (Object.keys(s.warning).length) L.push(`Warning signs: ${top(s.warning, (id) => labelOf(WARNING_SIGNS, id))}`);
-    if (s.hangover.asked) L.push(`Hangover afterwards: ${s.hangover.yes} of ${s.hangover.asked}`);
-  }
-  if (s.periods.starts.length) L.push(`Periods with a migraine within 2 days of day 1: ${s.periods.withMigraine} of ${s.periods.starts.length}`);
-  for (const p of s.preventives) {
-    L.push(
-      `${medLabel(p.med)} since ${fmtDay(p.start, { year: true })}: migraine days a month ${p.before.perMonth != null ? round1(p.before.perMonth) : '-'} before, ${p.after.perMonth != null ? round1(p.after.perMonth) : '-'} recently`,
-    );
-  }
-  if (s.midas) L.push(`MIDAS score ${s.midas.score} (grade ${midasGrade(s.midas.score).grade}) on ${fmtDay(s.midas.date, { year: true })}`);
-  const months = s.months.filter((m) => m.tracked > 0);
-  if (months.length) {
-    L.push('');
-    L.push('Month by month:');
-    for (const m of months) L.push(`- ${fmtMonth(m.month, { short: true })}: ${m.migraine} migraine days, ${m.medDays} medicine days, ${m.recorded} of ${m.tracked} days recorded`);
-  }
-  return L.join('\n');
 }
 
 // ---------- Settings ----------
@@ -1440,7 +1415,7 @@ function viewMed(id) {
     .join('');
   let h = bar(existing ? 'Edit medicine' : 'Add a medicine', { back: '#settings', cancel: true });
   h += section('Name', textInput('name', d.name, 'For example, Sumatriptan'));
-  h += section('Dose', textInput('dose', d.dose, 'For example, 50 mg'), 'Optional. If you take different strengths, add each one separately.');
+  h += section('Dose', textInput('dose', d.dose, 'For example, 50 mg', 'none'), 'Optional. If you take different strengths, add each one separately.');
   h += section('Brand or note', textInput('brand', d.brand, 'For example, Imitrex'), 'Optional.');
   h += section('Type', `<div class="med-list">${kinds}</div>`, 'The type decides how medicine days count toward the rebound headache limits.');
   if (d.kind === 'preventive') {
@@ -1681,13 +1656,10 @@ const ACTIONS = {
     const t = today();
     const i = makeIndex(state, t)(key);
     if (level >= 1 && !i.inEpisode) {
-      const extra =
-        key === t
-          ? { level }
-          : { startMode: 'pick', start: `${key}T12:00`, stillGoing: false, end: `${key}T20:00`, level };
-      startDraft('#new', newDefaults(extra));
+      startDraft('#new', newDefaults(formForDay(key, t, { level })));
       return go('#new');
     }
+    discardDraft('#day/' + key);
     state.days[key] = { ...(state.days[key] || {}), level };
     if (commit()) toast(`Saved ${fmtDay(key)}`);
     render();
@@ -1741,7 +1713,11 @@ const ACTIONS = {
     render();
   },
   'backup-save': async () => {
-    const file = new File([backupText(state)], `migraine-diary-backup-${today()}.json`, { type: 'application/json' });
+    const name = `migraine-diary-backup-${today()}`;
+    const text = backupText(state);
+    let file = new File([text], `${name}.json`, { type: 'application/json' });
+    // Some phones only share common file types, so fall back to plain text.
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) file = new File([text], `${name}.txt`, { type: 'text/plain' });
     if (await shareFiles([file], 'Migraine Diary backup')) {
       state.settings.lastBackup = new Date().toISOString();
       commit();
@@ -1758,10 +1734,16 @@ const ACTIONS = {
     ];
     await shareFiles(files, 'Migraine Diary spreadsheets');
   },
-  print: () => window.print(),
+  'save-pdf': async () => {
+    if (!lastSummary) return;
+    const t = today();
+    const blocks = summaryBlocks(state, lastSummary.s, lastSummary.title, t);
+    const bytes = makePdf(blocks, { title: `Migraine Diary summary: ${lastSummary.title}`, footer: `Migraine Diary, made ${fmtDay(t, { year: true })}` });
+    await shareFiles([new File([bytes], `migraine-summary-${t}.pdf`, { type: 'application/pdf' })], 'Migraine summary');
+  },
   'share-summary': async () => {
     if (!lastSummary) return;
-    const text = summaryText(lastSummary);
+    const text = blocksToText(summaryBlocks(state, lastSummary.s, lastSummary.title, today()));
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Migraine summary', text });
