@@ -37,7 +37,6 @@ import {
 import { loadState, saveState, freshState, newId, backupText, parseBackup, STORAGE_KEY, DRAFT_KEY } from './store.js';
 import {
   makeIndex,
-  overuseWindow,
   summarize,
   missingDays,
   dosesToRate,
@@ -359,10 +358,6 @@ function stat(n, label) {
   return `<div class="stat"><b>${n}</b><span>${esc(label)}</span></div>`;
 }
 
-function meter(label, n, limit, status) {
-  return `<div class="meter ${status}"><div class="meter-head"><span>${esc(label)}</span><b>${n} of ${limit}</b></div><div class="meter-bar"><i style="width:${Math.min(100, (n / limit) * 100)}%"></i></div></div>`;
-}
-
 function barRow(label, count, total, shown = count) {
   return `<div class="bar-row"><span>${esc(label)}</span><span class="track"><i style="width:${pct(count, total)}%"></i></span><span class="n">${shown}</span></div>`;
 }
@@ -516,7 +511,6 @@ function viewToday() {
   if (!ep) h += checkInCard(info, t);
   h += dailyMedsCard(t);
   h += catchUpCard(t);
-  h += reboundCard(info, t);
   h += monthCard(t);
   h += backupCard(t);
   return h;
@@ -596,22 +590,6 @@ function catchUpCard(t) {
     )
     .join('');
   return card('Days not filled in', `<p class="hint">Tap how each day went.</p>${rows}`);
-}
-
-function overuseBody(o) {
-  if (!o.rows.length) return '<p class="muted">No triptans or pain relievers in these 30 days.</p>';
-  let h = o.rows.map((r) => meter(`${r.label} days`, r.days, r.limit, r.status)).join('');
-  if (o.combined) h += meter('All of these together', o.combined.days, o.combined.limit, o.combined.status);
-  if (o.status === 'over') h += '<div class="note danger">At or above the level linked to rebound (medication overuse) headache. Worth raising with your doctor.</div>';
-  else if (o.status === 'near') h += '<div class="note warn">Getting close to the level linked to rebound headache.</div>';
-  return h;
-}
-
-const LIMITS_HINT =
-  '<p class="hint small">Limits per month: 10 days for triptans and combination medicines, 15 for plain pain relievers, and 10 for any mix of them. Allergy medicines are not counted.</p>';
-
-function reboundCard(info, t) {
-  return card('Medicine days, last 30 days', overuseBody(overuseWindow(state, t, t, 30, info)) + LIMITS_HINT);
 }
 
 function monthCard(t) {
@@ -1240,14 +1218,12 @@ function viewSummary(arg) {
     }`,
   );
 
-  h += card(`Medicine days in the 30 days to ${esc(fmtDay(s.to))}`, overuseBody(s.overuse) + LIMITS_HINT);
-
   const months = s.months.filter((m) => m.tracked > 0);
   if (months.length) {
     const rows = months
       .map(
         (m) =>
-          `<tr><td><a href="#summary/${m.month}">${esc(fmtMonth(m.month, { short: true }))}</a></td><td class="n">${m.migraine}</td><td class="n">${m.medDays}${m.overuse.status === 'over' ? ' <span class="pill lv3">over</span>' : ''}</td><td class="n">${m.recorded} of ${m.tracked}</td></tr>`,
+          `<tr><td><a href="#summary/${m.month}">${esc(fmtMonth(m.month, { short: true }))}</a></td><td class="n">${m.migraine}</td><td class="n">${m.medDays}</td><td class="n">${m.recorded} of ${m.tracked}</td></tr>`,
       )
       .join('');
     h += card(
@@ -1363,6 +1339,7 @@ function viewSummary(arg) {
   h += `<div class="stack no-print" style="margin:16px 0">
     <button type="button" class="btn" data-act="save-pdf">Save or print as PDF</button>
     <button type="button" class="btn" data-act="share-summary">Share as text</button>
+    <p class="hint">The PDF and text also say, for your doctor, whether medicine days are at a level where rebound headache is possible.</p>
     <a class="btn" href="#midas">Fill in the MIDAS questionnaire</a>
   </div>`;
   return h;
@@ -1433,7 +1410,7 @@ function viewMed(id) {
   h += section('Name', textInput('name', d.name, 'For example, Sumatriptan'));
   h += section('Dose', textInput('dose', d.dose, 'For example, 50 mg', 'none'), 'Optional. If you take different strengths, add each one separately.');
   h += section('Brand or note', textInput('brand', d.brand, 'For example, Imitrex'), 'Optional.');
-  h += section('Type', `<div class="med-list">${kinds}</div>`, 'The type decides how medicine days count toward the rebound headache limits.');
+  h += section('Type', `<div class="med-list">${kinds}</div>`, 'The type groups your medicines here and in the summary you export for your doctor.');
   if (d.kind === 'preventive') {
     h += section('Started on', `<input type="date" data-bind="startedOn" value="${esc(d.startedOn)}">`, 'Used to compare migraine days before and after you started it.');
   }
@@ -1531,7 +1508,6 @@ function viewHelp() {
     `<ul class="plain">
       <li>A migraine lasts more than 3 days (72 hours)</li>
       <li>Your migraines change pattern or become much more frequent</li>
-      <li>You need migraine medicine on 10 or more days a month</li>
       <li>Your usual medicine stops working</li>
       <li>You have 4 or more migraine days a month and no preventive</li>
     </ul><p class="hint">General information, not medical advice.</p>`,

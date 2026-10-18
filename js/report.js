@@ -38,13 +38,22 @@ export function summaryBlocks(state, s, title, today) {
     add('note', '4 or more migraine days a month: the 2026 AAN and AHS guideline says doctors should offer preventive treatment at this level.');
   }
 
-  add('h', `Medicine days in the 30 days to ${fmtDay(s.to)}`);
-  if (!s.overuse.rows.length) add('p', 'No triptans or pain relievers.');
-  for (const r of s.overuse.rows) add('li', `${r.label}: ${r.days} of ${r.limit}`);
-  if (s.overuse.combined) add('li', `All of these together: ${s.overuse.combined.days} of ${s.overuse.combined.limit}`);
-  if (s.overuse.status === 'over') add('note', 'At or above the level linked to rebound (medication overuse) headache.');
-  else if (s.overuse.status === 'near') add('note', 'Close to the level linked to rebound headache.');
-  add('note', 'Limits per month: 10 days for triptans and combination medicines, 15 for plain pain relievers, 10 for any mix. Allergy medicines are not counted.');
+  // Rebound headache appears only here, in what is exported for the doctor,
+  // stated plainly as a possibility.
+  add('h', 'Medicine days and rebound headache');
+  add('p', `In the 30 days to ${fmtDay(s.to)}:`);
+  if (!s.overuse.rows.length) add('li', 'No triptans, pain relievers or combination medicines.');
+  for (const r of s.overuse.rows) add('li', `${r.label}: ${plural(r.days, 'day')} (rebound headache is possible at ${r.limit} or more)`);
+  if (s.overuse.combined) add('li', `All of these together: ${plural(s.overuse.combined.days, 'day')} (possible at ${s.overuse.combined.limit} or more when mixed)`);
+  if (s.overuse.rows.length) {
+    if (s.overuse.status === 'over') add('p', 'At this level, rebound headache is possible.');
+    else if (s.overuse.status === 'near') add('p', 'This is close to the level where rebound headache is possible.');
+    else add('p', 'This is below the level where rebound headache is possible.');
+  }
+  add(
+    'note',
+    'Rebound headache is the ICHD-3 diagnosis medication-overuse headache. It is possible with triptans or combination medicines on 10 or more days a month, plain pain relievers on 15 or more, or any mix on 10 or more. Allergy medicines and supplements are not counted.',
+  );
 
   const months = s.months.filter((m) => m.tracked > 0);
   if (months.length) {
@@ -52,7 +61,7 @@ export function summaryBlocks(state, s, title, today) {
     for (const m of months) {
       add(
         'li',
-        `${fmtMonth(m.month, { short: true })}: ${plural(m.migraine, 'migraine day')}, ${plural(m.medDays, 'medicine day')}, ${m.recorded} of ${m.tracked} days recorded${m.overuse.status === 'over' ? ', over the medicine limit' : ''}`,
+        `${fmtMonth(m.month, { short: true })}: ${plural(m.migraine, 'migraine day')}, ${plural(m.medDays, 'medicine day')}, ${m.recorded} of ${m.tracked} days recorded${m.overuse.status === 'over' ? ', at a level where rebound headache is possible' : ''}`,
       );
     }
   }

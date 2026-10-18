@@ -7,7 +7,7 @@
 export const MED_KINDS = {
   triptan: { label: 'Triptan', hint: 'Sumatriptan, rizatriptan, and similar', overuseLimit: 10 },
   simple: { label: 'Pain reliever', hint: 'Ibuprofen, naproxen, acetaminophen, aspirin', overuseLimit: 15 },
-  combo: { label: 'Combination or opioid', hint: 'Excedrin, Fioricet, anything with codeine', overuseLimit: 10 },
+  combo: { label: 'Combination pain reliever', hint: 'Excedrin, Fioricet, and pain relievers combined with codeine', overuseLimit: 10 },
   gepant: { label: 'Gepant or ditan', hint: 'Ubrelvy, Nurtec, Reyvow' },
   allergy: { label: 'Allergy or sinus', hint: 'Zyrtec, Claritin, Allegra, Flonase, Sudafed' },
   other: { label: 'Other', hint: 'Anti-nausea and anything else' },

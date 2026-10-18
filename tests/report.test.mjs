@@ -35,6 +35,31 @@ test('summary blocks cover the key numbers, medicines and features', () => {
   assert.ok(blocks.filter((b) => b.kind === 'h').length >= 4);
 });
 
+test('rebound headache is stated plainly in the export, at every level', () => {
+  const s = sample();
+  const blocksFor = (state) => blocksToText(summaryBlocks(state, summarize(state, '2026-09-01', '2026-09-30', '2026-10-18'), 'September 2026', '2026-10-18'));
+  // One triptan day: below the level.
+  let text = blocksFor(s);
+  assert.match(text, /\nMedicine days and rebound headache\n/);
+  assert.match(text, /- Triptan: 1 day \(rebound headache is possible at 10 or more\)/);
+  assert.match(text, /This is below the level where rebound headache is possible\./);
+  // Ten triptan days: at the level.
+  for (let d = 12; d <= 20; d++) {
+    s.doses.push({ id: newId(), medId: 'suma', name: 'Sumatriptan', dose: '50 mg', kind: 'triptan', time: at(`2026-09-${d}`, 9), pain: 5, result: null, episodeId: null });
+  }
+  text = blocksFor(s);
+  assert.match(text, /- Triptan: 10 days/);
+  assert.match(text, /At this level, rebound headache is possible\./);
+  assert.match(text, /Sep 2026: .*at a level where rebound headache is possible/);
+  // No counted medicines at all.
+  s.doses = [];
+  text = blocksFor(s);
+  assert.match(text, /- No triptans, pain relievers or combination medicines\./);
+  assert.doesNotMatch(text, /below the level|At this level|close to the level/);
+  // No judging words anywhere.
+  assert.doesNotMatch(blocksFor(sample()), /too much|too many|should not|excessive|abuse/i);
+});
+
 test('pdf text helpers: ASCII folding, widths and wrapping', () => {
   assert.equal(toAscii('Café “quoted” – it’s fine…'), 'Cafe "quoted" - it\'s fine...');
   assert.equal(toAscii('日本'), '??');

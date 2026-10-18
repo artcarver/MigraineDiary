@@ -188,7 +188,7 @@ button, a { touch-action: manipulation; }
   cursor: pointer;
 }
 .med-btn small { color: var(--muted); font-size: 14px; }
-.med-btn .count { color: var(--warn); font-size: 14px; white-space: nowrap; }
+.med-btn .count { color: var(--muted); font-size: 14px; white-space: nowrap; }
 .med-btn.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
 .med-group { margin-top: 10px; color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
@@ -324,15 +324,6 @@ label.input > span { display: block; color: var(--muted); font-size: 14px; margi
 .face-picked { text-align: center; margin-top: 8px; color: var(--muted); font-size: 15px; }
 
 /* Home */
-.meter + .meter { margin-top: 12px; }
-.meter-head { display: flex; justify-content: space-between; font-size: 15px; }
-.meter-bar { height: 8px; border-radius: 4px; background: var(--surface-2); margin-top: 6px; overflow: hidden; }
-.meter-bar > i { display: block; height: 100%; background: var(--l1); border-radius: 4px; }
-.meter.near .meter-bar > i { background: var(--warn); }
-.meter.over .meter-bar > i { background: var(--danger); }
-.meter.near .meter-head b, .meter.over .meter-head b { color: var(--warn); }
-.meter.over .meter-head b { color: var(--danger); }
-
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .stat { background: var(--surface-2); border-radius: 12px; padding: 10px; }
 .stat b { display: block; font-size: 24px; line-height: 1.1; }
