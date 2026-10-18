@@ -105,10 +105,14 @@ export function summaryBlocks(state, s, title, today) {
   for (const p of s.preventives) {
     const rate = (r) => (r.perMonth != null ? round1(r.perMonth) : '-');
     add('h', medLabel(p.med));
-    add(
-      'p',
-      `Started ${fmtDay(p.start, { year: true })}. Taken on ${p.taken} of ${plural(p.withEntry, 'day')} recorded. Migraine days a month: ${rate(p.before)} before, ${rate(p.after)} recently${p.change != null ? ` (${p.change <= 0 ? 'down' : 'up'} ${Math.abs(Math.round(p.change * 100))}%)` : ''}.`,
-    );
+    if (p.med.startedOn) {
+      add(
+        'p',
+        `Started ${fmtDay(p.start, { year: true })}. Taken on ${p.taken} of ${plural(p.withEntry, 'day')} recorded. Migraine days a month: ${rate(p.before)} before, ${rate(p.after)} recently${p.change != null ? ` (${p.change <= 0 ? 'down' : 'up'} ${Math.abs(Math.round(p.change * 100))}%)` : ''}.`,
+      );
+    } else {
+      add('p', `Taken on and off: ${p.taken} of ${plural(p.withEntry, 'day')} recorded since ${fmtDay(p.start, { year: true })}.`);
+    }
   }
 
   if (s.midas) {

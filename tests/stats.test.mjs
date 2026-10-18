@@ -19,9 +19,18 @@ import { toCsv, daysCsv, dosesCsv, migrainesCsv } from '../js/csv.js';
 
 const at = (key, hh = 12, mm = 0) => new Date(`${key}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`).toISOString();
 
+// A fixed medicine list, so these tests don't depend on the starting list.
+const TEST_MEDS = [
+  { id: 'suma', name: 'Sumatriptan', dose: '50 mg', kind: 'triptan', active: true },
+  { id: 'riza', name: 'Rizatriptan', dose: '10 mg', kind: 'triptan', active: true },
+  { id: 'ibu', name: 'Ibuprofen', dose: '200 mg', kind: 'simple', active: true },
+  { id: 'cet', name: 'Cetirizine', dose: '10 mg', kind: 'allergy', active: true },
+];
+
 function base(startedOn = '2026-09-01') {
   const s = freshState(new Date(`${startedOn}T09:00:00`));
   s.startedOn = startedOn;
+  s.settings.meds = TEST_MEDS.map((m) => ({ ...m }));
   return s;
 }
 
@@ -197,6 +206,20 @@ test('summary: preventive before and after comparison', () => {
   assert.equal(p.start, '2026-08-01');
   assert.equal(p.taken, 3);
   assert.ok(p.change < -0.5, `expected more than a 50% drop, got ${p.change}`);
+});
+
+test('preventive taken on and off, with no start date, gets no before-and-after comparison', () => {
+  const s = base('2026-06-01');
+  s.settings.meds.push({ id: 'mag', name: 'Magnesium', dose: '400 mg', kind: 'preventive', active: true });
+  for (let i = 0; i < 8; i++) s.days[addDays('2026-06-03', i * 7)] = { level: 2 };
+  s.days['2026-08-02'] = { level: 0, preventive: { mag: true } };
+  s.days['2026-08-09'] = { level: 0 };
+  s.days['2026-09-20'] = { level: 1, preventive: { mag: true } };
+  const p = summarize(s, '2026-07-20', '2026-10-17', '2026-10-18').preventives[0];
+  assert.equal(p.start, '2026-08-02');
+  assert.equal(p.taken, 2);
+  assert.equal(p.withEntry, 3);
+  assert.equal(p.change, null);
 });
 
 test('missing days and doses waiting for a rating', () => {

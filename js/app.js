@@ -92,11 +92,9 @@ function commit() {
   }
 }
 
-// Save the starting lists on first launch, so a half-filled form that names a
-// medicine still finds it if the app is closed before the first save.
-try {
-  if (!loadProblem && !localStorage.getItem(STORAGE_KEY)) commit();
-} catch {}
+// Save once at launch, so the starting lists (and any list upgrade) keep the
+// same ids and a half-filled form that names a medicine still finds it.
+if (!loadProblem) commit();
 
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
@@ -137,6 +135,13 @@ function clean(e) {
     if (v == null || v === false || (Array.isArray(v) && !v.length) || emptyObj) delete e[k];
   }
   return e;
+}
+
+// Stores a day entry, or removes it once nothing is left in it.
+function putDay(key, e) {
+  const c = clean(e);
+  if (Object.keys(c).length) state.days[key] = c;
+  else delete state.days[key];
 }
 
 let toastTimer;
@@ -509,6 +514,7 @@ function viewToday() {
   h += ep ? ongoingCard(ep, info, t, now) : '<button type="button" class="btn primary huge" data-act="go" data-href="#new">New migraine</button>';
   h += rateCard(now);
   if (!ep) h += checkInCard(info, t);
+  h += dailyMedsCard(t);
   h += catchUpCard(t);
   h += reboundCard(info, t);
   h += monthCard(t);
@@ -569,6 +575,15 @@ function checkInCard(info, t) {
     ? 'A migraine was going on earlier today, so this counts as a migraine day unless you tap No migraine.'
     : 'Tap once a day, good days too. Blank days make the counts less accurate.';
   return card('How was today?', `<p class="hint">${hint}</p>${quickLevels(t, false)}`);
+}
+
+// One tap for daily supplements and preventives, so good days count too.
+function dailyMedsCard(t) {
+  const meds = preventiveMeds();
+  if (!meds.length) return '';
+  const taken = (state.days[t] && state.days[t].preventive) || {};
+  const rows = meds.map((m) => switchRow('', taken[m.id], `Took ${medLabel(m)} today`, 'daily-med', ` data-med="${m.id}" data-day="${t}"`)).join('');
+  return card('Daily supplements', rows);
 }
 
 function catchUpCard(t) {
@@ -824,7 +839,7 @@ function saveNew() {
   if (d.symptoms.length) e.symptoms = [...new Set([...(e.symptoms || []), ...d.symptoms])];
   if (d.missed) e.missed = true;
   mergeExtras(e, d);
-  state.days[key] = clean(e);
+  putDay(key, e);
 
   if (commit()) {
     dropDraft();
@@ -946,7 +961,7 @@ function saveDay() {
   e.habits = Object.fromEntries(Object.entries(d.habits || {}).filter(([, v]) => v != null));
   e.period = d.period;
   e.preventive = Object.fromEntries(Object.entries(d.preventive || {}).filter(([, v]) => v));
-  state.days[key] = clean(e);
+  putDay(key, e);
   if (info.inEpisode) {
     for (const x of d.doses.filter((y) => med(y.medId))) {
       const time = fromLocalInput(x.time) || new Date().toISOString();
@@ -1327,12 +1342,13 @@ function viewSummary(arg) {
 
   for (const p of s.preventives) {
     const rate = (r) => (r.perMonth != null ? round1(r.perMonth) : '-');
-    h += card(
-      esc(medLabel(p.med)),
-      `<p>Started ${esc(fmtDay(p.start, { year: true }))}. Taken on ${p.taken} of ${plural(p.withEntry, 'day')} recorded.</p>
+    const body = p.med.startedOn
+      ? `<p>Started ${esc(fmtDay(p.start, { year: true }))}. Taken on ${p.taken} of ${plural(p.withEntry, 'day')} recorded.</p>
       <p>Migraine days a month: ${rate(p.before)} before, ${rate(p.after)} recently${p.change != null ? ` (${p.change <= 0 ? 'down' : 'up'} ${Math.abs(Math.round(p.change * 100))}%)` : ''}.</p>
-      <p class="hint">A drop of 50% or more is the usual goal for a preventive.${p.change == null ? ' The comparison needs at least 2 weeks of diary before and after starting.' : ''}</p>`,
-    );
+      <p class="hint">A drop of 50% or more is the usual goal for a preventive.${p.change == null ? ' The comparison needs at least 2 weeks of diary before and after starting.' : ''}</p>`
+      : `<p>Taken on ${p.taken} of ${plural(p.withEntry, 'day')} recorded since ${esc(fmtDay(p.start, { year: true }))}.</p>
+      <p class="hint">No start date, so there is no before-and-after comparison. If you start taking it every day, add the start date in Settings.</p>`;
+    h += card(esc(medLabel(p.med)), body);
   }
 
   if (s.midas) {
@@ -1689,6 +1705,19 @@ const ACTIONS = {
       dropDraft();
       go('#settings');
     }
+  },
+  'daily-med': (el) => {
+    const key = el.dataset.day;
+    const id = el.dataset.med;
+    const e = { ...(state.days[key] || {}) };
+    const taken = { ...(e.preventive || {}) };
+    if (taken[id]) delete taken[id];
+    else taken[id] = true;
+    e.preventive = taken;
+    putDay(key, e);
+    discardDraft('#day/' + key);
+    commit();
+    render();
   },
   'symptom-flip': (el) => {
     const s = state.settings.symptoms.find((x) => x.id === el.dataset.id);

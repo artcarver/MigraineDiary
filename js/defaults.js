@@ -11,22 +11,39 @@ export const MED_KINDS = {
   gepant: { label: 'Gepant or ditan', hint: 'Ubrelvy, Nurtec, Reyvow' },
   allergy: { label: 'Allergy or sinus', hint: 'Zyrtec, Claritin, Allegra, Flonase, Sudafed' },
   other: { label: 'Other', hint: 'Anti-nausea and anything else' },
-  preventive: { label: 'Daily preventive', hint: 'Taken every day to prevent migraines', daily: true },
+  preventive: { label: 'Daily preventive or supplement', hint: 'Taken every day to prevent migraines, like magnesium', daily: true },
 };
 
 export const COMBINED_LIMIT = 10;
 
+// The owner's own medicines and usual doses.
 export const DEFAULT_MEDS = [
-  { name: 'Ibuprofen', dose: '200 mg', brand: 'Advil, Motrin', kind: 'simple' },
-  { name: 'Naproxen', dose: '220 mg', brand: 'Aleve', kind: 'simple' },
-  { name: 'Acetaminophen', dose: '500 mg', brand: 'Tylenol', kind: 'simple' },
-  { name: 'Excedrin Migraine', dose: '', brand: '', kind: 'combo' },
-  { name: 'Sumatriptan', dose: '50 mg', brand: 'Imitrex', kind: 'triptan' },
-  { name: 'Rizatriptan', dose: '10 mg', brand: 'Maxalt', kind: 'triptan' },
+  { name: 'Rizatriptan', dose: '10 mg', brand: 'Maxalt tablet', kind: 'triptan' },
+  { name: 'Ibuprofen', dose: '400 mg', brand: 'Advil or Motrin, 2 pills', kind: 'simple' },
+  { name: 'Naproxen', dose: '440 mg', brand: 'Aleve, 2 pills', kind: 'simple' },
+  { name: 'Acetaminophen', dose: '1000 mg', brand: 'Tylenol Extra Strength, 2 pills', kind: 'simple' },
+  { name: 'Excedrin Migraine', dose: '2 caplets', brand: 'Acetaminophen, aspirin and caffeine', kind: 'combo' },
   { name: 'Cetirizine', dose: '10 mg', brand: 'Zyrtec', kind: 'allergy' },
-  { name: 'Loratadine', dose: '10 mg', brand: 'Claritin', kind: 'allergy' },
-  { name: 'Fexofenadine', dose: '180 mg', brand: 'Allegra', kind: 'allergy' },
+  { name: 'Diphenhydramine', dose: '12.5 mg', brand: 'Benadryl', kind: 'allergy' },
+  { name: 'Pseudoephedrine', dose: '120 mg', brand: 'Sudafed 12 Hour', kind: 'allergy' },
   { name: 'Fluticasone spray', dose: '', brand: 'Flonase', kind: 'allergy' },
+  { name: 'Magnesium', dose: '400 mg', brand: 'Daily supplement', kind: 'preventive' },
+  { name: 'Riboflavin', dose: '400 mg', brand: 'Vitamin B2, daily supplement', kind: 'preventive' },
+];
+
+// The generic starting list from the first version, as name and dose, so a
+// phone that saved it can be moved to the list above.
+export const V1_DEFAULT_MEDS = [
+  ['Ibuprofen', '200 mg'],
+  ['Naproxen', '220 mg'],
+  ['Acetaminophen', '500 mg'],
+  ['Excedrin Migraine', ''],
+  ['Sumatriptan', '50 mg'],
+  ['Rizatriptan', '10 mg'],
+  ['Cetirizine', '10 mg'],
+  ['Loratadine', '10 mg'],
+  ['Fexofenadine', '180 mg'],
+  ['Fluticasone spray', ''],
 ];
 
 export const DEFAULT_SYMPTOMS = [

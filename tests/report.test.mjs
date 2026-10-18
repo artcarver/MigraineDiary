@@ -12,7 +12,8 @@ const at = (key, hh = 12) => new Date(`${key}T${String(hh).padStart(2, '0')}:00:
 function sample() {
   const s = freshState(new Date('2026-09-01T09:00:00'));
   s.startedOn = '2026-09-01';
-  const suma = s.settings.meds.find((m) => m.name === 'Sumatriptan');
+  const suma = { id: 'suma', name: 'Sumatriptan', dose: '50 mg', kind: 'triptan', active: true };
+  s.settings.meds = [suma];
   const e = { id: newId(), start: at('2026-09-10', 8), end: at('2026-09-11', 20), pain: 7, locations: ['fh-l'], quality: ['throbbing'], symptoms: ['light'], warning: ['neck'], aura: null, hangover: true, returnOf: null, wokeUp: true };
   s.episodes.push(e);
   s.doses.push({ id: newId(), medId: suma.id, name: suma.name, dose: suma.dose, kind: 'triptan', time: at('2026-09-10', 9), pain: 3, result: 'gone', episodeId: e.id });

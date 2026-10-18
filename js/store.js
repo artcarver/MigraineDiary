@@ -1,12 +1,13 @@
 // Saved data lives in this phone's localStorage under one key. Nothing is
 // sent anywhere; the backup file is the only way data leaves the phone.
 
-import { DEFAULT_MEDS, DEFAULT_SYMPTOMS } from './defaults.js';
+import { DEFAULT_MEDS, DEFAULT_SYMPTOMS, V1_DEFAULT_MEDS } from './defaults.js';
 import { todayKey } from './dates.js';
 
 export const STORAGE_KEY = 'migraine-diary';
 export const DRAFT_KEY = 'migraine-diary-draft';
 const SCHEMA = 1;
+const MED_LIST_VERSION = 2;
 
 export function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -22,6 +23,7 @@ export function freshState(now = new Date()) {
       trackPeriods: true,
       trackHabits: true,
       lastBackup: null,
+      medListVersion: MED_LIST_VERSION,
     },
     episodes: [],
     doses: [],
@@ -38,7 +40,7 @@ export function normalize(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('No diary data found.');
   const base = freshState();
   const s = obj(raw.settings);
-  return {
+  return migrateMeds({
     schema: SCHEMA,
     startedOn: typeof raw.startedOn === 'string' ? raw.startedOn : base.startedOn,
     settings: {
@@ -47,6 +49,7 @@ export function normalize(raw) {
       trackPeriods: s.trackPeriods ?? true,
       trackHabits: s.trackHabits ?? true,
       lastBackup: s.lastBackup ?? null,
+      medListVersion: s.medListVersion ?? 1,
     },
     episodes: arr(raw.episodes).map((e) => ({
       locations: [],
@@ -64,7 +67,32 @@ export function normalize(raw) {
     doses: arr(raw.doses).map((d) => ({ pain: null, result: null, episodeId: null, ...d })),
     days: obj(raw.days),
     midas: arr(raw.midas),
+  });
+}
+
+// Moves a phone from the generic first-version medicine list to the owner's
+// own list. A starting medicine that is on the new list gets the new dose and
+// note; one that is not is dropped unless it was ever used. Medicines added by
+// hand are left alone.
+export function migrateMeds(state) {
+  if (state.settings.medListVersion >= MED_LIST_VERSION) return state;
+  const used = new Set(state.doses.map((d) => d.medId));
+  for (const e of Object.values(state.days)) for (const id of Object.keys((e && e.preventive) || {})) used.add(id);
+  const isV1 = (m) => V1_DEFAULT_MEDS.some(([name, dose]) => m.name === name && (m.dose || '') === dose);
+  const meds = [];
+  for (const m of state.settings.meds) {
+    const next = isV1(m) && DEFAULT_MEDS.find((d) => d.name === m.name);
+    if (next) meds.push({ ...m, ...next, id: m.id, active: m.active });
+    else if (!isV1(m) || used.has(m.id)) meds.push(m);
+  }
+  for (const d of DEFAULT_MEDS) if (!meds.some((m) => m.name === d.name)) meds.push({ id: newId(), ...d, active: true });
+  const order = (m) => {
+    const i = DEFAULT_MEDS.findIndex((d) => d.name === m.name);
+    return i < 0 ? DEFAULT_MEDS.length : i;
   };
+  state.settings.meds = meds.sort((a, b) => order(a) - order(b));
+  state.settings.medListVersion = MED_LIST_VERSION;
+  return state;
 }
 
 export function loadState(storage = globalThis.localStorage) {
