@@ -106,3 +106,19 @@ export function fmtHours(h) {
   const rest = Math.round(h - days * 24);
   return rest ? `${days} d ${rest} h` : `${days} d`;
 }
+
+// How long ago, for "last taken": "just now", "25 min ago", "3 h 10 min ago"
+// (minutes only under 6 hours), then "yesterday" or "4 days ago" by calendar
+// day.
+export function fmtAgo(iso, now = new Date()) {
+  const mins = Math.floor((now - new Date(iso)) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 24 * 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m && h < 6 ? `${h} h ${m} min ago` : `${h} h ago`;
+  }
+  const days = diffDays(dayKey(iso), dayKey(now));
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}

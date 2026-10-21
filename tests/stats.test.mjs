@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { freshState, backupText, parseBackup, newId } from '../js/store.js';
-import { dayRange, diffDays, addDays, fromLocalInput, toLocalInput, dayKey } from '../js/dates.js';
+import { dayRange, diffDays, addDays, fromLocalInput, toLocalInput, dayKey, fmtAgo } from '../js/dates.js';
 import {
   makeIndex,
   overuseWindow,
@@ -14,6 +14,7 @@ import {
   recentlyEnded,
   episodeSides,
   trackingStart,
+  medUse,
 } from '../js/stats.js';
 import { toCsv, daysCsv, dosesCsv, migrainesCsv } from '../js/csv.js';
 
@@ -227,6 +228,59 @@ test('missing days and doses waiting for a rating', () => {
   const d1 = addDose(s, 'Sumatriptan', new Date('2026-10-06T08:00:00').toISOString());
   addDose(s, 'Sumatriptan', new Date('2026-10-06T09:30:00').toISOString());
   assert.deepEqual(dosesToRate(s, new Date('2026-10-06T10:00:00')).map((d) => d.id), [d1.id]);
+});
+
+test('"did it help?" skips allergy medicines outside a migraine and doses marked skip', () => {
+  const s = base('2026-10-01');
+  const e = addEpisode(s, at('2026-10-06', 7), null);
+  const tript = addDose(s, 'Sumatriptan', at('2026-10-06', 8));
+  addDose(s, 'Cetirizine', at('2026-10-06', 8, 5));
+  const cetInMigraine = addDose(s, 'Cetirizine', at('2026-10-06', 8, 10), { episodeId: e.id });
+  const skipped = addDose(s, 'Ibuprofen', at('2026-10-06', 8, 15), { noRate: true });
+  assert.deepEqual(dosesToRate(s, new Date(at('2026-10-06', 12))).map((d) => d.id), [tript.id, cetInMigraine.id]);
+  assert.equal(skipped.result, null);
+});
+
+test('medicine use: today, 7 and 30 day counts, last dose, per-day strip and supplements', () => {
+  const s = base('2026-09-01');
+  s.settings.meds.push({ id: 'mag', name: 'Magnesium', dose: '400 mg', kind: 'preventive', active: true });
+  const now = new Date(at('2026-10-20', 18));
+  addDose(s, 'Ibuprofen', at('2026-10-20', 9));
+  addDose(s, 'Ibuprofen', at('2026-10-20', 15));
+  addDose(s, 'Sumatriptan', at('2026-10-17', 9));
+  addDose(s, 'Sumatriptan', at('2026-10-01', 9));
+  addDose(s, 'Ibuprofen', at('2026-09-15', 9)); // outside 30 days
+  addDose(s, 'Ibuprofen', at('2026-10-21', 9)); // tomorrow: ignored
+  s.days['2026-10-20'] = { preventive: { mag: true } };
+  s.days['2026-10-10'] = { preventive: { mag: true } };
+  const u = medUse(s, now);
+  assert.equal(u.today, 2);
+  assert.equal(u.d7, 3);
+  assert.equal(u.days7, 2);
+  assert.equal(u.d30, 4);
+  assert.equal(u.days30, 3);
+  assert.equal(u.last.time, at('2026-10-20', 15));
+  assert.deepEqual(
+    u.rows.map((r) => [r.med.name, r.d30, r.days30]),
+    [
+      ['Ibuprofen', 2, 1],
+      ['Sumatriptan', 2, 2],
+    ],
+  );
+  assert.equal(u.perDay.length, 30);
+  assert.equal(u.perDay[0].key, '2026-09-21');
+  assert.equal(u.perDay.at(-1).doses, 2);
+  assert.deepEqual(u.daily.map((x) => [x.med.name, x.today, x.d7, x.d30]), [['Magnesium', true, 1, 2]]);
+});
+
+test('time since a dose reads naturally', () => {
+  const now = new Date(at('2026-10-20', 18));
+  assert.equal(fmtAgo(at('2026-10-20', 18), now), 'just now');
+  assert.equal(fmtAgo(at('2026-10-20', 17, 35), now), '25 min ago');
+  assert.equal(fmtAgo(at('2026-10-20', 14, 50), now), '3 h 10 min ago');
+  assert.equal(fmtAgo(at('2026-10-20', 9, 50), now), '8 h ago');
+  assert.equal(fmtAgo(at('2026-10-19', 9), now), 'yesterday');
+  assert.equal(fmtAgo(at('2026-10-16', 20), now), '4 days ago');
 });
 
 test('tracking start moves back when a past migraine is entered', () => {

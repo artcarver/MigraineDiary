@@ -18,22 +18,39 @@ so entries made in Safari do not show up in the home screen app.
 
 ## What it records
 
+- **Each dose, in one tap:** the Today tab has a button for each medicine.
+  A tap logs it at the current time, joins it to the migraine going on if
+  there is one, and then offers an optional pain score, Undo, and (for a
+  migraine medicine with no migraine open) a button that starts a migraine
+  entry from the time of the dose. **Took it earlier?** logs a dose 15, 30 or
+  60 minutes ago, or at any time.
 - **Every day:** how the day went, on a traffic-light scale (no migraine,
   could function, slowed down, had to stop or in bed). Blank days show up for
   catch-up, because migraine days per month is the number doctors use most.
 - **Each migraine:** when it started (or that you woke up with it), pain from 0
-  to 10, where it hurts on a front-of-face drawing, what it feels like,
-  symptoms, aura, and warning signs beforehand.
+  to 10, and any medicine. Where it hurts on a front-of-face drawing, what it
+  feels like, symptoms, aura and warning signs sit behind **Add more
+  details**, so starting an entry mid-attack takes three taps; the
+  migraine's page offers to add them later.
 - **Each day it continues:** worst pain, symptoms, missed work, school or
   plans, and medicines.
 - **Each dose:** the medicine, the time, and your pain when you took it. Two
-  hours later the app asks whether it helped (gone, better, same or worse).
+  hours later the app asks whether it helped (gone, better, same or worse),
+  or you can tap Skip. Allergy medicines taken outside a migraine are not
+  asked about. Any dose can be opened to change it or delete it.
 - **When it ends:** the end time and whether there was a migraine hangover.
 - **Optional:** sleep, meals and caffeine; daily supplements or a preventive
   medicine.
 
 ## What it shows
 
+- **Meds tab:** how much medicine and how often, as plain counts: doses
+  today and in the last 7 and 30 days (and on how many days), a 30-day chart
+  of doses per day, each medicine's last dose and counts, how often each
+  daily supplement was ticked, and a dose log by day. Tap a medicine to see
+  only its doses; tap a dose to edit it.
+- **Today:** the last dose and how long ago it was, and this month's
+  migraine days, medicine days and doses.
 - A 72-hour note when a migraine passes 3 days.
 - No warnings or limits about how much medicine is taken anywhere in the app.
   Rebound headache comes up only in the exported summary, below.
@@ -93,7 +110,15 @@ There is no build step and there are no dependencies. Serve the folder with
 any static server and open it in a browser.
 
 - `index.html`, `css/app.css`: the page and its styles (dark only).
-- `js/app.js`: screens and taps.
+- `js/app.js`: starts the app, draws the screen for the address after `#`,
+  and sends taps (`data-act`) to the screens' actions.
+- `js/views/`: one file per area (`today`, `meds`, `calendar`, `summary`,
+  `settings`, `migraine`, `day`, `dose`). Each exports `views` and `actions`.
+- `js/model.js`: the diary in memory, saving it, and half-filled forms
+  (drafts), which survive the app closing for 12 hours.
+- `js/ui.js`, `js/widgets.js`: shared pieces of screens. `ui.js` only builds
+  HTML; `widgets.js` also reads the diary.
+- `js/router.js`: addresses and Back. `js/share.js`: the share sheet.
 - `js/stats.js`: everything the app counts, as pure functions.
 - `js/store.js`: saving to `localStorage`, plus the backup format.
 - `js/csv.js`: the spreadsheet export.
@@ -101,8 +126,11 @@ any static server and open it in a browser.
   as text.
 - `js/pdf.js`: a small PDF writer for that summary.
 - `js/defaults.js`: starting medicine and symptom lists, and the overuse limits.
-- `sw.js`: offline cache. **Change `CACHE` whenever any file changes**, or
-  phones keep running the old version.
+- `js/util.js`, `js/dates.js`: small text and date helpers.
+- `sw.js`: offline cache. **Change `CACHE` whenever any file changes**, and
+  list any new file in `FILES` (a test checks this). Phones fetch the new
+  version when the app opens or comes back to the front, and switch to it
+  the next time you move between tabs, never in the middle of a form.
 - `tools/make_icons.py`: redraws the icons (needs Pillow).
 
 Run the tests with `npm test` (Node 20 or later).

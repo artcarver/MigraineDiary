@@ -4,11 +4,7 @@
 import { LOCATIONS, QUALITIES, WARNING_SIGNS, AURA_TYPES, midasGrade } from './defaults.js';
 import { fmtDay, fmtMonth, fmtHours } from './dates.js';
 import { medLabel } from './stats.js';
-
-const round1 = (x) => Math.round(x * 10) / 10;
-const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
-const labelOf = (list, id) => (list.find((x) => x.id === id) || {}).label || id;
-const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+import { round1, plural, labelOf, pct } from './util.js';
 
 function ranked(counts, label) {
   return Object.entries(counts)
