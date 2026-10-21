@@ -4,6 +4,7 @@
 import { LEVELS, QUALITIES, LOCATIONS, WARNING_SIGNS, AURA_TYPES, AURA_LENGTHS, RESULTS, HABITS, MED_KINDS } from './defaults.js';
 import { dayKey, dayRange, fmtTime, hoursBetween } from './dates.js';
 import { makeIndex, trackingStart, medFor, medLabel, isDaily, episodePeak, episodeSymptoms, cameBack } from './stats.js';
+import { labelOf } from './util.js';
 
 function cell(v) {
   const s = v == null ? '' : String(v);
@@ -14,8 +15,7 @@ export function toCsv(rows) {
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
-const labelFrom = (list, id) => (list.find((x) => x.id === id) || {}).label || id;
-const labels = (list, ids) => (ids || []).map((id) => labelFrom(list, id)).join('; ');
+const labels = (list, ids) => (ids || []).map((id) => labelOf(list, id)).join('; ');
 const yesNo = (v) => (v == null ? '' : v ? 'yes' : 'no');
 
 export function daysCsv(state, today) {
@@ -49,7 +49,7 @@ export function daysCsv(state, today) {
         .map((d) => `${medLabel(medFor(state, d))} at ${fmtTime(d.time)}`)
         .join('; '),
       i.medDay ? 'yes' : '',
-      ...HABITS.map((h) => (e.habits && e.habits[h.id] ? labelFrom(h.options, e.habits[h.id]) : '')),
+      ...HABITS.map((h) => (e.habits && e.habits[h.id] ? labelOf(h.options, e.habits[h.id]) : '')),
       ...preventives.map((m) => (e.preventive && e.preventive[m.id] ? 'yes' : '')),
     ]);
   }
@@ -67,7 +67,7 @@ export function dosesCsv(state) {
       medLabel(med),
       (MED_KINDS[med.kind] || {}).label || med.kind,
       d.pain ?? '',
-      d.result ? labelFrom(RESULTS, d.result) : '',
+      d.result ? labelOf(RESULTS, d.result) : '',
       d.result === 'gone' ? yesNo(cameBack(state, d)) : '',
     ]);
   }
@@ -103,7 +103,7 @@ export function migrainesCsv(state, today) {
       labels(LOCATIONS, e.locations),
       labels(QUALITIES, e.quality),
       labels(state.settings.symptoms, episodeSymptoms(state, e, today)),
-      e.aura ? [labels(AURA_TYPES, e.aura.types), e.aura.length ? labelFrom(AURA_LENGTHS, e.aura.length) : ''].filter(Boolean).join(', ') || 'yes' : '',
+      e.aura ? [labels(AURA_TYPES, e.aura.types), e.aura.length ? labelOf(AURA_LENGTHS, e.aura.length) : ''].filter(Boolean).join(', ') || 'yes' : '',
       labels(WARNING_SIGNS, e.warning),
       yesNo(e.hangover),
     ]);

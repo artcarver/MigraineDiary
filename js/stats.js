@@ -392,6 +392,7 @@ export function summarize(state, from, to, today) {
     migrainePer30: per30(migraineDays),
     medDays,
     medPer30: per30(medDays),
+    doseCount: doses.filter((d) => !isDaily(kindOf(state, d))).length,
     levels,
     missed,
     avgDayPain: dayPains.length ? dayPains.reduce((a, b) => a + b, 0) / dayPains.length : null,
@@ -435,10 +436,73 @@ export function missingDays(state, today, limit = 14) {
 }
 
 // Doses taken at least two hours ago that still need a "did it help?" answer.
+// Allergy medicines taken outside a migraine are not asked about, and nor is
+// a dose the person chose to skip.
 export function dosesToRate(state, now = new Date()) {
   return state.doses
-    .filter((d) => !d.result && !isDaily(kindOf(state, d)) && now - new Date(d.time) >= 2 * HOUR)
+    .filter((d) => {
+      if (d.result || d.noRate) return false;
+      const kind = kindOf(state, d);
+      if (isDaily(kind) || (kind === 'allergy' && !d.episodeId)) return false;
+      return now - new Date(d.time) >= 2 * HOUR;
+    })
     .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+// How often medicines were taken, as plain counts: totals for today and the
+// last 7 and 30 days, each medicine's last dose, doses per day for the last
+// 30 days, and how often each daily supplement was ticked.
+export function medUse(state, now = new Date()) {
+  const day = dayKey(now);
+  const from7 = addDays(day, -6);
+  const from30 = addDays(day, -29);
+  const perDay = new Map(dayRange(from30, day).map((k) => [k, 0]));
+  const blank = () => ({ today: 0, d7: 0, d30: 0, days7: new Set(), days30: new Set() });
+  const total = blank();
+  const byMed = new Map();
+  let last = null;
+  for (const d of state.doses) {
+    const med = medFor(state, d);
+    const k = dayKey(d.time);
+    if (isDaily(med.kind) || k > day) continue;
+    if (!byMed.has(med.id)) byMed.set(med.id, { med, last: null, ...blank() });
+    const row = byMed.get(med.id);
+    if (!row.last || d.time > row.last.time) row.last = d;
+    if (!last || d.time > last.time) last = d;
+    for (const c of [row, total]) {
+      if (k === day) c.today++;
+      if (k >= from7) {
+        c.d7++;
+        c.days7.add(k);
+      }
+      if (k >= from30) {
+        c.d30++;
+        c.days30.add(k);
+      }
+    }
+    if (perDay.has(k)) perDay.set(k, perDay.get(k) + 1);
+  }
+  const sized = (c) => ({ ...c, days7: c.days7.size, days30: c.days30.size });
+  const daily = state.settings.meds
+    .filter((m) => m.active && isDaily(m.kind))
+    .map((m) => {
+      let d7 = 0;
+      let d30 = 0;
+      for (const k of dayRange(from30, day)) {
+        if (!state.days[k]?.preventive?.[m.id]) continue;
+        d30++;
+        if (k >= from7) d7++;
+      }
+      return { med: m, today: !!state.days[day]?.preventive?.[m.id], d7, d30 };
+    });
+  return {
+    day,
+    ...sized(total),
+    last,
+    rows: [...byMed.values()].map(sized).sort((a, b) => b.d30 - a.d30 || b.last.time.localeCompare(a.last.time)),
+    perDay: [...perDay].map(([key, doses]) => ({ key, doses })),
+    daily,
+  };
 }
 
 // The episode that ended within 48 hours before a new start, if any.

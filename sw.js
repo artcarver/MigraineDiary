@@ -1,6 +1,7 @@
 // Offline support: keeps a copy of the app's files so it opens with no signal.
-// Change CACHE whenever any file changes, so phones pick up the new version.
-const CACHE = 'migraine-diary-v5';
+// Change CACHE whenever any file changes, so phones pick up the new version;
+// the app then switches to it the next time it moves between screens.
+const CACHE = 'migraine-diary-v6';
 const FILES = [
   './',
   'index.html',
@@ -8,11 +9,25 @@ const FILES = [
   'js/app.js',
   'js/csv.js',
   'js/dates.js',
+  'js/defaults.js',
+  'js/model.js',
   'js/pdf.js',
   'js/report.js',
-  'js/defaults.js',
+  'js/router.js',
+  'js/share.js',
   'js/stats.js',
   'js/store.js',
+  'js/ui.js',
+  'js/util.js',
+  'js/widgets.js',
+  'js/views/calendar.js',
+  'js/views/day.js',
+  'js/views/dose.js',
+  'js/views/meds.js',
+  'js/views/migraine.js',
+  'js/views/settings.js',
+  'js/views/summary.js',
+  'js/views/today.js',
   'manifest.webmanifest',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
