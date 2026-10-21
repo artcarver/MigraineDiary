@@ -34,9 +34,9 @@ so entries made in Safari do not show up in the home screen app.
 
 ## What it shows
 
-- Medicine days in the last 30 days, measured against the rebound headache
-  limits.
 - A 72-hour note when a migraine passes 3 days.
+- No warnings or limits about how much medicine is taken anywhere in the app.
+  Rebound headache comes up only in the exported summary, below.
 - A one-page doctor summary for 30 days, 90 days or one month:
   - migraine days and medicine days, with a month-by-month table
   - how each medicine worked, both when taken early and when taken later
@@ -45,6 +45,8 @@ so entries made in Safari do not show up in the home screen app.
   - patterns with sleep, meals, caffeine and periods
   - a before-and-after comparison for a preventive
   - the MIDAS questionnaire score
+  - medicine days in the last 30 days, and whether they are at a level where
+    rebound headache is possible
 
   **Save or print as PDF** builds the PDF on the phone and opens the share
   sheet, where it can be printed, saved to Files, or mailed. **Share as

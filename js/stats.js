@@ -300,7 +300,9 @@ function preventives(state, info, tStart, to) {
     const before = migraineRate(info, dayRange(beforeFrom, addDays(start, -1)));
     const afterFrom = addDays(to, -89) < start ? start : addDays(to, -89);
     const after = migraineRate(info, dayRange(afterFrom, to));
-    const comparable = before.tracked >= 14 && after.tracked >= 14 && before.perMonth > 0;
+    // Before-and-after only means something with a real start date, not for
+    // something taken on and off.
+    const comparable = !!med.startedOn && before.tracked >= 14 && after.tracked >= 14 && before.perMonth > 0;
     out.push({
       med,
       start,

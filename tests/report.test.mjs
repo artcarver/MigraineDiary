@@ -12,7 +12,8 @@ const at = (key, hh = 12) => new Date(`${key}T${String(hh).padStart(2, '0')}:00:
 function sample() {
   const s = freshState(new Date('2026-09-01T09:00:00'));
   s.startedOn = '2026-09-01';
-  const suma = s.settings.meds.find((m) => m.name === 'Sumatriptan');
+  const suma = { id: 'suma', name: 'Sumatriptan', dose: '50 mg', kind: 'triptan', active: true };
+  s.settings.meds = [suma];
   const e = { id: newId(), start: at('2026-09-10', 8), end: at('2026-09-11', 20), pain: 7, locations: ['fh-l'], quality: ['throbbing'], symptoms: ['light'], warning: ['neck'], aura: null, hangover: true, returnOf: null, wokeUp: true };
   s.episodes.push(e);
   s.doses.push({ id: newId(), medId: suma.id, name: suma.name, dose: suma.dose, kind: 'triptan', time: at('2026-09-10', 9), pain: 3, result: 'gone', episodeId: e.id });
@@ -32,6 +33,31 @@ test('summary blocks cover the key numbers, medicines and features', () => {
   assert.match(text, /Where: Forehead, left 1/);
   assert.match(text, /Warning signs: Stiff neck 1/);
   assert.ok(blocks.filter((b) => b.kind === 'h').length >= 4);
+});
+
+test('rebound headache is stated plainly in the export, at every level', () => {
+  const s = sample();
+  const blocksFor = (state) => blocksToText(summaryBlocks(state, summarize(state, '2026-09-01', '2026-09-30', '2026-10-18'), 'September 2026', '2026-10-18'));
+  // One triptan day: below the level.
+  let text = blocksFor(s);
+  assert.match(text, /\nMedicine days and rebound headache\n/);
+  assert.match(text, /- Triptan: 1 day \(rebound headache is possible at 10 or more\)/);
+  assert.match(text, /This is below the level where rebound headache is possible\./);
+  // Ten triptan days: at the level.
+  for (let d = 12; d <= 20; d++) {
+    s.doses.push({ id: newId(), medId: 'suma', name: 'Sumatriptan', dose: '50 mg', kind: 'triptan', time: at(`2026-09-${d}`, 9), pain: 5, result: null, episodeId: null });
+  }
+  text = blocksFor(s);
+  assert.match(text, /- Triptan: 10 days/);
+  assert.match(text, /At this level, rebound headache is possible\./);
+  assert.match(text, /Sep 2026: .*at a level where rebound headache is possible/);
+  // No counted medicines at all.
+  s.doses = [];
+  text = blocksFor(s);
+  assert.match(text, /- No triptans, pain relievers or combination medicines\./);
+  assert.doesNotMatch(text, /below the level|At this level|close to the level/);
+  // No judging words anywhere.
+  assert.doesNotMatch(blocksFor(sample()), /too much|too many|should not|excessive|abuse/i);
 });
 
 test('pdf text helpers: ASCII folding, widths and wrapping', () => {
