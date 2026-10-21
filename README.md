@@ -29,8 +29,8 @@ so entries made in Safari do not show up in the home screen app.
 - **Each dose:** the medicine, the time, and your pain when you took it. Two
   hours later the app asks whether it helped (gone, better, same or worse).
 - **When it ends:** the end time and whether there was a migraine hangover.
-- **Optional:** sleep, meals and caffeine; the day a period starts; a daily
-  preventive medicine.
+- **Optional:** sleep, meals and caffeine; daily supplements or a preventive
+  medicine.
 
 ## What it shows
 
@@ -42,7 +42,7 @@ so entries made in Safari do not show up in the home screen app.
   - how each medicine worked, both when taken early and when taken later
   - how often a migraine came back after a medicine had made it go
   - side and location of the pain, and symptoms
-  - patterns with sleep, meals, caffeine and periods
+  - patterns with sleep, meals and caffeine
   - a before-and-after comparison for a preventive
   - the MIDAS questionnaire score
   - medicine days in the last 30 days, and whether they are at a level where

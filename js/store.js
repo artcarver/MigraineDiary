@@ -20,7 +20,6 @@ export function freshState(now = new Date()) {
     settings: {
       meds: DEFAULT_MEDS.map((m) => ({ id: newId(), ...m, active: true })),
       symptoms: DEFAULT_SYMPTOMS.map((s) => ({ ...s, hidden: false })),
-      trackPeriods: true,
       trackHabits: true,
       lastBackup: null,
       medListVersion: MED_LIST_VERSION,
@@ -46,7 +45,6 @@ export function normalize(raw) {
     settings: {
       meds: Array.isArray(s.meds) ? s.meds : base.settings.meds,
       symptoms: Array.isArray(s.symptoms) ? s.symptoms : base.settings.symptoms,
-      trackPeriods: s.trackPeriods ?? true,
       trackHabits: s.trackHabits ?? true,
       lastBackup: s.lastBackup ?? null,
       medListVersion: s.medListVersion ?? 1,
@@ -65,9 +63,20 @@ export function normalize(raw) {
       ...e,
     })),
     doses: arr(raw.doses).map((d) => ({ pain: null, result: null, episodeId: null, ...d })),
-    days: obj(raw.days),
+    days: withoutPeriods(obj(raw.days)),
     midas: arr(raw.midas),
   });
+}
+
+// Period tracking was removed; clear any period marks saved before that.
+function withoutPeriods(days) {
+  const out = {};
+  for (const [key, entry] of Object.entries(days)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { period, ...rest } = entry;
+    if (Object.keys(rest).length) out[key] = rest;
+  }
+  return out;
 }
 
 // Moves a phone from the generic first-version medicine list to the owner's

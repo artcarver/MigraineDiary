@@ -409,7 +409,7 @@ function existingDoses(doses) {
     .join('');
 }
 
-function extras(d, when) {
+function extras(d) {
   let h = '';
   if (state.settings.trackHabits) {
     const body = HABITS.map(
@@ -418,12 +418,8 @@ function extras(d, when) {
     h += section('Habits', body, 'Optional. Things you can change, so patterns can show up over time.');
   }
   const prevs = preventiveMeds();
-  if (state.settings.trackPeriods || prevs.length) {
-    let body = '';
-    if (state.settings.trackPeriods) body += switchRow('period', d.period, `Period started ${when}`);
-    for (const m of prevs) body += switchRow(`preventive.${m.id}`, (d.preventive || {})[m.id], `Took ${medLabel(m)}`);
-    const title = prevs.length && state.settings.trackPeriods ? 'Period and daily medicine' : prevs.length ? 'Daily medicine' : 'Period';
-    h += section(title, body);
+  if (prevs.length) {
+    h += section('Daily supplements', prevs.map((m) => switchRow(`preventive.${m.id}`, (d.preventive || {})[m.id], `Took ${medLabel(m)}`)).join(''));
   }
   return h;
 }
@@ -632,7 +628,6 @@ function newDefaults(extra = {}) {
     missed: false,
     doses: [],
     habits: {},
-    period: false,
     preventive: {},
     returnAnswer: null,
     hangover: null,
@@ -764,7 +759,7 @@ function migraineForm(d, ep, otherOngoing) {
       levelPicker('level', d.level, { none: false }) + switchRow('missed', d.missed, 'Missed work, school or plans'),
     );
     h += section('Medicines taken', doseEditor(d), 'Tap a medicine each time you take a dose.');
-    h += extras(d, ended ? 'that day' : 'today');
+    h += extras(d);
   }
   return h;
 }
@@ -772,7 +767,6 @@ function migraineForm(d, ep, otherOngoing) {
 function mergeExtras(e, d) {
   const habits = Object.fromEntries(Object.entries(d.habits || {}).filter(([, v]) => v != null));
   if (Object.keys(habits).length) e.habits = { ...(e.habits || {}), ...habits };
-  if (d.period) e.period = true;
   const prev = Object.fromEntries(Object.entries(d.preventive || {}).filter(([, v]) => v));
   if (Object.keys(prev).length) e.preventive = { ...(e.preventive || {}), ...prev };
 }
@@ -884,7 +878,6 @@ function dayDefaults(key, info) {
     prefilled: !e.symptoms && !!(symptoms && symptoms.length),
     missed: !!e.missed,
     habits: { ...(e.habits || {}) },
-    period: !!e.period,
     preventive: { ...(e.preventive || {}) },
     doses: [],
   };
@@ -915,7 +908,7 @@ function viewDay(arg) {
   } else if (migraineish) {
     h += '<div class="note" style="margin-top:14px">This day is not part of a migraine entry yet. The next step adds the details.</div>';
   }
-  h += extras(d, key === t ? 'today' : 'this day');
+  h += extras(d);
   return h + saveBar('save-day', migraineish && !info.inEpisode ? 'Next' : 'Save');
 }
 
@@ -937,7 +930,6 @@ function saveDay() {
     delete e.missed;
   }
   e.habits = Object.fromEntries(Object.entries(d.habits || {}).filter(([, v]) => v != null));
-  e.period = d.period;
   e.preventive = Object.fromEntries(Object.entries(d.preventive || {}).filter(([, v]) => v));
   putDay(key, e);
   if (info.inEpisode) {
@@ -1137,11 +1129,10 @@ function viewCalendar(arg) {
       fmtDay(k),
       i.level != null ? LEVELS[i.level].label : i.inEpisode ? 'during a migraine, not rated' : 'not filled in',
       i.medDay ? 'medicine taken' : '',
-      i.period ? 'period started' : '',
     ]
       .filter(Boolean)
       .join(', ');
-    cells += `<button type="button" class="${cls}" data-act="go" data-href="#day/${k}" aria-label="${esc(label)}">${n}${i.medDay ? '<span class="dot"></span>' : ''}${i.period ? '<span class="per"></span>' : ''}</button>`;
+    cells += `<button type="button" class="${cls}" data-act="go" data-href="#day/${k}" aria-label="${esc(label)}">${n}${i.medDay ? '<span class="dot"></span>' : ''}</button>`;
   }
 
   let h = mainBar('Calendar');
@@ -1153,7 +1144,7 @@ function viewCalendar(arg) {
     <span><i class="lv0"></i>No migraine</span><span><i class="lv1"></i>Could function</span>
     <span><i class="lv2"></i>Slowed down</span><span><i class="lv3"></i>Had to stop</span>
     <span><i class="ep"></i>Migraine, not rated</span><span><i class="none"></i>Not filled in</span>
-    <span><i class="dotkey"></i>Medicine</span>${state.settings.trackPeriods ? '<span><i class="perkey"></i>Period started</span>' : ''}
+    <span><i class="dotkey"></i>Medicine</span>
   </div>`;
   const eps = state.episodes
     .filter((e) => episodeStartKey(e) <= to && episodeEndKey(e, t) >= from)
@@ -1309,13 +1300,6 @@ function viewSummary(arg) {
     h += card('Habits and migraine days', body);
   }
 
-  if (state.settings.trackPeriods && s.periods.starts.length) {
-    h += card(
-      'Periods',
-      `<p>A migraine within 2 days of the first day in ${s.periods.withMigraine} of ${plural(s.periods.starts.length, 'period')}.</p><p class="hint">Menstrual migraine means this happens in at least 2 of 3 cycles. A longer range shows more cycles.</p>`,
-    );
-  }
-
   for (const p of s.preventives) {
     const rate = (r) => (r.perMonth != null ? round1(r.perMonth) : '-');
     const body = p.med.startedOn
@@ -1368,8 +1352,7 @@ function viewSettings() {
   );
   h += card(
     'Optional parts',
-    switchRow('trackPeriods', state.settings.trackPeriods, 'Period start days', 'setting-flip') +
-      switchRow('trackHabits', state.settings.trackHabits, 'Habit taps: sleep, meals, caffeine', 'setting-flip'),
+    switchRow('trackHabits', state.settings.trackHabits, 'Habit taps: sleep, meals, caffeine', 'setting-flip'),
   );
   h += card('Daily reminder', reminderSteps());
   const last = state.settings.lastBackup;

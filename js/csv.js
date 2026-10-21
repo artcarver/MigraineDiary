@@ -31,7 +31,6 @@ export function daysCsv(state, today) {
     'medicines',
     'migraine medicine day',
     ...HABITS.map((h) => h.label.toLowerCase()),
-    'period started',
     ...preventives.map((m) => `took ${medLabel(m)}`),
   ];
   const rows = [header];
@@ -51,7 +50,6 @@ export function daysCsv(state, today) {
         .join('; '),
       i.medDay ? 'yes' : '',
       ...HABITS.map((h) => (e.habits && e.habits[h.id] ? labelFrom(h.options, e.habits[h.id]) : '')),
-      e.period ? 'yes' : '',
       ...preventives.map((m) => (e.preventive && e.preventive[m.id] ? 'yes' : '')),
     ]);
   }
