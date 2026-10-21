@@ -1,6 +1,6 @@
 // Offline support: keeps a copy of the app's files so it opens with no signal.
 // Change CACHE whenever any file changes, so phones pick up the new version.
-const CACHE = 'migraine-diary-v4';
+const CACHE = 'migraine-diary-v5';
 const FILES = [
   './',
   'index.html',

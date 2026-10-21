@@ -182,17 +182,6 @@ test('summary: the 3-month rate uses calendar days tracked, not days with migrai
   assert.equal(sum.migrainePer30, 4);
 });
 
-test('summary: period window is two days either side of day 1', () => {
-  const s = base('2026-09-01');
-  s.days['2026-09-10'] = { level: 0, period: true };
-  s.days['2026-09-08'] = { level: 2 };
-  s.days['2026-10-08'] = { level: 0, period: true };
-  s.days['2026-10-11'] = { level: 2 };
-  const sum = summarize(s, '2026-09-01', '2026-10-17', '2026-10-18');
-  assert.equal(sum.periods.starts.length, 2);
-  assert.equal(sum.periods.withMigraine, 1);
-});
-
 test('summary: preventive before and after comparison', () => {
   const s = base('2026-06-01');
   s.settings.meds.push({ id: 'prev', name: 'Topiramate', dose: '25 mg', kind: 'preventive', active: true, startedOn: '2026-08-01' });

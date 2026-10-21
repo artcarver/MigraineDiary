@@ -85,7 +85,6 @@ export function makeIndex(state, today) {
       medDay: acute.length > 0,
       kinds: new Set(acute.map((d) => kindOf(state, d))),
       peakPain: migraine && pains.length ? Math.max(...pains) : null,
-      period: !!(entry && entry.period),
     };
     cache.set(key, res);
     return res;
@@ -333,17 +332,6 @@ function habitRows(info, keys) {
   });
 }
 
-function periodPattern(info, keys) {
-  const starts = keys.filter((k) => info(k).period);
-  let withMigraine = 0;
-  for (const s of starts) {
-    // ICHD-3 window: day 1 of the period plus or minus 2 days (days -2 to +3,
-    // with no day 0), which is two calendar days either side of day 1.
-    if (dayRange(addDays(s, -2), addDays(s, 2)).some((k) => info(k).migraine)) withMigraine++;
-  }
-  return { starts, withMigraine };
-}
-
 function countIds(lists) {
   const counts = {};
   for (const list of lists) for (const id of list) counts[id] = (counts[id] || 0) + 1;
@@ -424,7 +412,6 @@ export function summarize(state, from, to, today) {
     hangover: { yes: hangoverAsked.filter((e) => e.hangover).length, asked: hangoverAsked.length },
     meds,
     habits: habitRows(info, keys),
-    periods: periodPattern(info, keys),
     preventives: preventives(state, info, tStart, effTo),
     overuse: overuseWindow(state, effTo, today, 30, info),
     months: monthRows(state, today, 6, info),

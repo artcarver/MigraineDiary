@@ -58,3 +58,17 @@ test('the change runs once: later edits are not undone', () => {
   const again = normalize(JSON.parse(JSON.stringify(s)));
   assert.ok(!again.settings.meds.some((m) => m.name === 'Naproxen'));
 });
+
+test('period marks saved before period tracking was removed are cleared', () => {
+  const raw = freshState();
+  raw.settings.trackPeriods = true;
+  raw.days = {
+    '2026-10-01': { level: 0, period: true },
+    '2026-10-02': { period: true },
+    '2026-10-03': { level: 2, habits: { sleep: 'poor' } },
+  };
+  const s = normalize(JSON.parse(JSON.stringify(raw)));
+  assert.deepEqual(s.days, { '2026-10-01': { level: 0 }, '2026-10-03': { level: 2, habits: { sleep: 'poor' } } });
+  assert.equal('trackPeriods' in s.settings, false);
+  assert.ok(!JSON.stringify(s).includes('period'));
+});

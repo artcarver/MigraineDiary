@@ -106,11 +106,6 @@ export function summaryBlocks(state, s, title, today) {
     add('note', 'Share of those days that were migraine days. Patterns, not proof.');
   }
 
-  if (state.settings.trackPeriods && s.periods.starts.length) {
-    add('h', 'Periods');
-    add('p', `A migraine within 2 days of the first day in ${s.periods.withMigraine} of ${plural(s.periods.starts.length, 'period')}.`);
-  }
-
   for (const p of s.preventives) {
     const rate = (r) => (r.perMonth != null ? round1(r.perMonth) : '-');
     add('h', medLabel(p.med));
